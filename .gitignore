@@ -18,8 +18,16 @@
 **/node_modules/
 **/.next/
 **/dist/
+
+# === Generic build folders ===
+# Note: we explicitly UN-ignore Arcium's compiled circuits below
 **/build/
-!programs/auction/build/        # Keep Arcium-compiled circuits — we WANT to commit these
+
+# === Re-include Arcium compiled circuits (offchain hosting) ===
+!programs/auction/build/
+!programs/auction/build/**
+
+# === Logs ===
 **/yarn-error.log
 **/npm-debug.log*
 
@@ -42,3 +50,4 @@ firebase-debug.log
 
 # === Backups ===
 *.bak
+*.b64
