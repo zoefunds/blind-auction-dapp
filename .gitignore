@@ -1,0 +1,44 @@
+# === Secrets ===
+.env
+.env.local
+.env.*.local
+*.pem
+**/identity*.pem
+**/id.json
+!**/build/**/*.json
+
+# === Solana / Anchor ===
+**/target/
+**/.anchor/
+**/test-ledger/
+**/artifacts/localnet/
+**/Cargo.lock.bak
+
+# === Node ===
+**/node_modules/
+**/.next/
+**/dist/
+**/build/
+!programs/auction/build/        # Keep Arcium-compiled circuits — we WANT to commit these
+**/yarn-error.log
+**/npm-debug.log*
+
+# === Firebase ===
+.firebase/
+*.log
+firebase-debug.log
+.runtimeconfig.json
+
+# === macOS ===
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Backups ===
+*.bak
