@@ -100,7 +100,7 @@ describe("Auction", () => {
     console.log("DEBUG program.programId:", program.programId.toBase58());
     console.log("DEBUG program.methods type:", typeof program.methods);
     console.log("DEBUG program.methods keys:", Object.keys(program.methods));
-    console.log("DEBUG addTogether type:", typeof (program.methods as any).addTogether);
+    console.log("DEBUG addTogether type:", typeof (program.methods as any).addTogetherV2);
     console.log("DEBUG IDL instructions:", program.idl.instructions?.map((i:any) => i.name));
 
     let queueSig: string;
@@ -109,7 +109,7 @@ describe("Auction", () => {
       // SendTransactionError formatter (which throws "Unknown action 'undefined'"
       // before showing the real on-chain logs).
       const tx = await program.methods
-        .addTogether(
+        .addTogetherV2(
           computationOffset,
           Array.from(ciphertext[0]),
           Array.from(ciphertext[1]),
@@ -207,7 +207,7 @@ describe("Auction", () => {
     const lutAddress = getLookupTableAddress(program.programId, mxeAcc.lutOffsetSlot);
 
     const sig = await program.methods
-      .initAddTogetherCompDef()
+      .initAddTogetherV2CompDef()
       .accounts({
         compDefAccount: compDefPDA,
         payer: owner.publicKey,

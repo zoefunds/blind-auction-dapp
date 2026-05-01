@@ -11,7 +11,7 @@ declare_id!("C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz");
 pub mod auction {
     use super::*;
 
-    pub fn init_add_together_comp_def(ctx: Context<InitAddTogetherCompDef>) -> Result<()> {
+    pub fn init_add_together_v2_comp_def(ctx: Context<InitAddTogetherV2CompDef>) -> Result<()> {
         init_comp_def(
             ctx.accounts,
             Some(CircuitSource::OffChain(OffChainCircuitSource {
@@ -23,8 +23,8 @@ pub mod auction {
         Ok(())
     }
 
-    pub fn add_together(
-        ctx: Context<AddTogether>,
+    pub fn add_together_v2(
+        ctx: Context<AddTogetherV2>,
         computation_offset: u64,
         ciphertext_0: [u8; 32],
         ciphertext_1: [u8; 32],
@@ -43,7 +43,7 @@ pub mod auction {
             ctx.accounts,
             computation_offset,
             args,
-            vec![AddTogetherCallback::callback_ix(
+            vec![AddTogetherV2Callback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
                 &[]
@@ -55,12 +55,12 @@ pub mod auction {
     }
 
     #[arcium_callback(encrypted_ix = "add_together_v2")]
-    pub fn add_together_callback(
-        ctx: Context<AddTogetherCallback>,
-        output: SignedComputationOutputs<AddTogetherOutput>,
+    pub fn add_together_v2_callback(
+        ctx: Context<AddTogetherV2Callback>,
+        output: SignedComputationOutputs<AddTogetherV2Output>,
     ) -> Result<()> {
         let o = match output.verify_output(&ctx.accounts.cluster_account, &ctx.accounts.computation_account) {
-            Ok(AddTogetherOutput { field_0 }) => field_0,
+            Ok(AddTogetherV2Output { field_0 }) => field_0,
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
 
@@ -75,7 +75,7 @@ pub mod auction {
 #[queue_computation_accounts("add_together_v2", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64)]
-pub struct AddTogether<'info> {
+pub struct AddTogetherV2<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(
@@ -134,7 +134,7 @@ pub struct AddTogether<'info> {
 
 #[callback_accounts("add_together_v2")]
 #[derive(Accounts)]
-pub struct AddTogetherCallback<'info> {
+pub struct AddTogetherV2Callback<'info> {
     pub arcium_program: Program<'info, Arcium>,
     #[account(
         address = derive_comp_def_pda!(COMP_DEF_OFFSET_ADD_TOGETHER_V2)
@@ -157,7 +157,7 @@ pub struct AddTogetherCallback<'info> {
 
 #[init_computation_definition_accounts("add_together_v2", payer)]
 #[derive(Accounts)]
-pub struct InitAddTogetherCompDef<'info> {
+pub struct InitAddTogetherV2CompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(
