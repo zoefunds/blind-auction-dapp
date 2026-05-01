@@ -98,7 +98,6 @@ describe("Auction", () => {
     const computationOffset = new anchor.BN(randomBytes(8), "hex");
 
     console.log("DEBUG program.programId:", program.programId.toBase58());
-    console.log("DEBUG program.methods type:", typeof program.methods);
     console.log("DEBUG program.methods keys:", Object.keys(program.methods));
     console.log("DEBUG addTogether type:", typeof (program.methods as any).addTogetherV2);
     console.log("DEBUG IDL instructions:", program.idl.instructions?.map((i:any) => i.name));
