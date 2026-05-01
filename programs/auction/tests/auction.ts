@@ -10,7 +10,6 @@ import {
   getArciumAccountBaseSeed,
   getArciumProgramId,
   getArciumProgram,
-  uploadCircuit,
   RescueCipher,
   deserializeLE,
   getMXEPublicKey,
@@ -56,12 +55,24 @@ describe("Auction", () => {
   it("Is initialized!", async () => {
     const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
 
-    console.log("Initializing add together computation definition");
-    const initATSig = await initAddTogetherCompDef(program, owner);
-    console.log(
-      "Add together computation definition initialized with signature",
-      initATSig,
-    );
+    console.log("Checking if add_together computation definition exists...");
+    const compDefPda = PublicKey.findProgramAddressSync(
+      [
+        getArciumAccountBaseSeed("ComputationDefinitionAccount"),
+        program.programId.toBuffer(),
+        getCompDefAccOffset("add_together_v2"),
+      ],
+      getArciumProgramId(),
+    )[0];
+
+    const existing = await provider.connection.getAccountInfo(compDefPda);
+    if (existing) {
+      console.log("Comp def already initialized — skipping init.");
+    } else {
+      console.log("Initializing add_together computation definition...");
+      const initATSig = await initAddTogetherCompDef(program, owner);
+      console.log("Initialized with signature:", initATSig);
+    }
 
     const mxePublicKey = await getMXEPublicKeyWithRetry(
       provider as anchor.AnchorProvider,
@@ -86,31 +97,80 @@ describe("Auction", () => {
     const sumEventPromise = awaitEvent("sumEvent");
     const computationOffset = new anchor.BN(randomBytes(8), "hex");
 
-    const queueSig = await program.methods
-      .addTogether(
-        computationOffset,
-        Array.from(ciphertext[0]),
-        Array.from(ciphertext[1]),
-        Array.from(publicKey),
-        new anchor.BN(deserializeLE(nonce).toString()),
-      )
-      .accountsPartial({
-        computationAccount: getComputationAccAddress(
-          arciumEnv.arciumClusterOffset,
+    console.log("DEBUG program.programId:", program.programId.toBase58());
+    console.log("DEBUG program.methods type:", typeof program.methods);
+    console.log("DEBUG program.methods keys:", Object.keys(program.methods));
+    console.log("DEBUG addTogether type:", typeof (program.methods as any).addTogether);
+    console.log("DEBUG IDL instructions:", program.idl.instructions?.map((i:any) => i.name));
+
+    let queueSig: string;
+    try {
+      // Build the transaction manually so we bypass Anchor 0.32's broken
+      // SendTransactionError formatter (which throws "Unknown action 'undefined'"
+      // before showing the real on-chain logs).
+      const tx = await program.methods
+        .addTogether(
           computationOffset,
-        ),
-        clusterAccount,
-        mxeAccount: getMXEAccAddress(program.programId),
-        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
-        executingPool: getExecutingPoolAccAddress(
-          arciumEnv.arciumClusterOffset,
-        ),
-        compDefAccount: getCompDefAccAddress(
-          program.programId,
-          Buffer.from(getCompDefAccOffset("add_together")).readUInt32LE(),
-        ),
-      })
-      .rpc({ skipPreflight: true, commitment: "confirmed" });
+          Array.from(ciphertext[0]),
+          Array.from(ciphertext[1]),
+          Array.from(publicKey),
+          new anchor.BN(deserializeLE(nonce).toString()),
+        )
+        .accountsPartial({
+          computationAccount: getComputationAccAddress(
+            arciumEnv.arciumClusterOffset,
+            computationOffset,
+          ),
+          clusterAccount,
+          mxeAccount: getMXEAccAddress(program.programId),
+          mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
+          executingPool: getExecutingPoolAccAddress(
+            arciumEnv.arciumClusterOffset,
+          ),
+          compDefAccount: getCompDefAccAddress(
+            program.programId,
+            Buffer.from(getCompDefAccOffset("add_together_v2")).readUInt32LE(),
+          ),
+        })
+        .transaction();
+
+      const conn = (provider as anchor.AnchorProvider).connection;
+      const wallet = (provider as anchor.AnchorProvider).wallet;
+      tx.feePayer = wallet.publicKey;
+      tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
+
+      // First, try a simulation so we can see logs even if it would fail
+      const sim = await conn.simulateTransaction(tx);
+      console.log("=== SIMULATION RESULT ===");
+      console.log("err:", JSON.stringify(sim.value.err, null, 2));
+      console.log("logs:");
+      (sim.value.logs ?? []).forEach((l) => console.log("  " + l));
+      console.log("=== END SIMULATION ===");
+
+      const signed = await wallet.signTransaction(tx);
+      queueSig = await conn.sendRawTransaction(signed.serialize(), {
+        skipPreflight: true,
+      });
+      await conn.confirmTransaction(queueSig, "confirmed");
+    } catch (e: any) {
+      console.log("=== CAUGHT ERROR ===");
+      console.log("Error name:", e?.name);
+      console.log("Error message:", e?.message);
+      if (e?.logs) {
+        console.log("Logs:");
+        e.logs.forEach((l: string) => console.log("  " + l));
+      }
+      if (typeof e?.getLogs === "function") {
+        try {
+          const logs = await e.getLogs((provider as anchor.AnchorProvider).connection);
+          console.log("getLogs():");
+          logs.forEach((l: string) => console.log("  " + l));
+        } catch {}
+      }
+      console.log("Full error:", e);
+      console.log("=== END CAUGHT ===");
+      throw e;
+    }
     console.log("Queue sig is ", queueSig);
 
     const finalizeSig = await awaitComputationFinalization(
@@ -133,7 +193,7 @@ describe("Auction", () => {
     const baseSeedCompDefAcc = getArciumAccountBaseSeed(
       "ComputationDefinitionAccount",
     );
-    const offset = getCompDefAccOffset("add_together");
+    const offset = getCompDefAccOffset("add_together_v2");
 
     const compDefPDA = PublicKey.findProgramAddressSync(
       [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
@@ -159,21 +219,8 @@ describe("Auction", () => {
         commitment: "confirmed",
       });
     console.log("Init add together computation definition transaction", sig);
-
-    const rawCircuit = fs.readFileSync("build/add_together.arcis");
-    await uploadCircuit(
-      provider as anchor.AnchorProvider,
-      "add_together",
-      program.programId,
-      rawCircuit,
-      true,
-      500,
-      {
-        skipPreflight: true,
-        preflightCommitment: "confirmed",
-        commitment: "confirmed",
-      },
-    );
+    // Circuit hosted offchain via GitHub raw URL.
+    // Arx Nodes fetch + verify hash from CircuitSource::OffChain in the program.
 
     return sig;
   }
