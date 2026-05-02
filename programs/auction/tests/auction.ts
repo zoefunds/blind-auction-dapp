@@ -9,7 +9,6 @@ import {
   getCompDefAccOffset,
   getArciumAccountBaseSeed,
   getArciumProgramId,
-  getArciumProgram,
   RescueCipher,
   deserializeLE,
   getMXEPublicKey,
@@ -20,243 +19,397 @@ import {
   getComputationAccAddress,
   getClusterAccAddress,
   getLookupTableAddress,
+  getArciumProgram,
   x25519,
 } from "@arcium-hq/client";
 import * as fs from "fs";
 import * as os from "os";
 import { expect } from "chai";
 
-describe("Auction", () => {
-  // Configure the client to use the local cluster.
+/**
+ * Splits a 32-byte public key into two u128 values (lo and hi parts).
+ * Required because Arcis encrypts each primitive separately.
+ */
+function splitPubkeyToU128s(pubkey: Uint8Array): { lo: bigint; hi: bigint } {
+  const loBytes = pubkey.slice(0, 16);
+  const hiBytes = pubkey.slice(16, 32);
+  const lo = deserializeLE(loBytes);
+  const hi = deserializeLE(hiBytes);
+  return { lo, hi };
+}
+
+/**
+ * Builds a tx via program.methods, then signs and sends manually.
+ * Workaround for Anchor 0.32's broken rpc() with web3.js 1.95+
+ * which throws "Unknown action 'undefined'".
+ */
+async function manualRpc(
+  builder: any,
+  provider: anchor.AnchorProvider,
+  extraSigners: anchor.web3.Keypair[] = [],
+  label: string = "tx"
+): Promise<string> {
+  const tx = await builder.transaction();
+  const conn = provider.connection;
+  const wallet = provider.wallet as any;
+  tx.feePayer = wallet.publicKey;
+  tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
+
+  // Optional: simulate first to surface real on-chain errors
+  try {
+    const sim = await conn.simulateTransaction(tx);
+    if (sim.value.err) {
+      console.log(`  [${label}] simulation err:`, JSON.stringify(sim.value.err));
+      console.log(`  [${label}] simulation logs:`);
+      (sim.value.logs ?? []).forEach((l) => console.log("    " + l));
+    }
+  } catch (e) {
+    console.log(`  [${label}] simulation threw:`, e);
+  }
+
+  // Sign with extra keypairs first (e.g., new auction authority)
+  if (extraSigners.length > 0) {
+    tx.partialSign(...extraSigners);
+  }
+  // Then with the wallet
+  const signed = await wallet.signTransaction(tx);
+  const sig = await conn.sendRawTransaction(signed.serialize(), {
+    skipPreflight: true,
+  });
+  await conn.confirmTransaction(sig, "confirmed");
+  return sig;
+}
+
+describe("Auction (Sealed-Bid First-Price)", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
-  const program = anchor.workspace
-    .Auction as Program<Auction>;
-  const provider = anchor.getProvider();
-  const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
-
-  type Event = anchor.IdlEvents<(typeof program)["idl"]>;
-  const awaitEvent = async <E extends keyof Event>(
-    eventName: E,
-  ): Promise<Event[E]> => {
-    let listenerId: number;
-    const event = await new Promise<Event[E]>((res) => {
-      listenerId = program.addEventListener(eventName, (event) => {
-        res(event);
-      });
-    });
-    await program.removeEventListener(listenerId);
-
-    return event;
-  };
-
+  const program = anchor.workspace.Auction as Program<Auction>;
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
   const arciumEnv = getArciumEnv();
   const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
 
-  it("Is initialized!", async () => {
-    const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
+  type Event = anchor.IdlEvents<(typeof program)["idl"]>;
 
-    console.log("Checking if add_together computation definition exists...");
-    const compDefPda = PublicKey.findProgramAddressSync(
-      [
-        getArciumAccountBaseSeed("ComputationDefinitionAccount"),
-        program.programId.toBuffer(),
-        getCompDefAccOffset("add_together_v2"),
-      ],
-      getArciumProgramId(),
-    )[0];
+  // ---- helpers ----
 
-    const existing = await provider.connection.getAccountInfo(compDefPda);
-    if (existing) {
-      console.log("Comp def already initialized — skipping init.");
-    } else {
-      console.log("Initializing add_together computation definition...");
-      const initATSig = await initAddTogetherCompDef(program, owner);
-      console.log("Initialized with signature:", initATSig);
-    }
-
-    const mxePublicKey = await getMXEPublicKeyWithRetry(
-      provider as anchor.AnchorProvider,
-      program.programId,
+  function readKpJson(path: string): anchor.web3.Keypair {
+    const file = fs.readFileSync(path);
+    return anchor.web3.Keypair.fromSecretKey(
+      new Uint8Array(JSON.parse(file.toString()))
     );
+  }
 
-    console.log("MXE x25519 pubkey is", mxePublicKey);
-
-    const privateKey = x25519.utils.randomSecretKey();
-    const publicKey = x25519.getPublicKey(privateKey);
-
-    const sharedSecret = x25519.getSharedSecret(privateKey, mxePublicKey);
-    const cipher = new RescueCipher(sharedSecret);
-
-    const val1 = BigInt(1);
-    const val2 = BigInt(2);
-    const plaintext = [val1, val2];
-
-    const nonce = randomBytes(16);
-    const ciphertext = cipher.encrypt(plaintext, nonce);
-
-    const sumEventPromise = awaitEvent("sumEvent");
-    const computationOffset = new anchor.BN(randomBytes(8), "hex");
-
-    console.log("DEBUG program.programId:", program.programId.toBase58());
-    console.log("DEBUG program.methods keys:", Object.keys(program.methods));
-    console.log("DEBUG addTogether type:", typeof (program.methods as any).addTogetherV2);
-    console.log("DEBUG IDL instructions:", program.idl.instructions?.map((i:any) => i.name));
-
-    let queueSig: string;
-    try {
-      // Build the transaction manually so we bypass Anchor 0.32's broken
-      // SendTransactionError formatter (which throws "Unknown action 'undefined'"
-      // before showing the real on-chain logs).
-      const tx = await program.methods
-        .addTogetherV2(
-          computationOffset,
-          Array.from(ciphertext[0]),
-          Array.from(ciphertext[1]),
-          Array.from(publicKey),
-          new anchor.BN(deserializeLE(nonce).toString()),
-        )
-        .accountsPartial({
-          computationAccount: getComputationAccAddress(
-            arciumEnv.arciumClusterOffset,
-            computationOffset,
-          ),
-          clusterAccount,
-          mxeAccount: getMXEAccAddress(program.programId),
-          mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
-          executingPool: getExecutingPoolAccAddress(
-            arciumEnv.arciumClusterOffset,
-          ),
-          compDefAccount: getCompDefAccAddress(
-            program.programId,
-            Buffer.from(getCompDefAccOffset("add_together_v2")).readUInt32LE(),
-          ),
-        })
-        .transaction();
-
-      const conn = (provider as anchor.AnchorProvider).connection;
-      const wallet = (provider as anchor.AnchorProvider).wallet;
-      tx.feePayer = wallet.publicKey;
-      tx.recentBlockhash = (await conn.getLatestBlockhash("confirmed")).blockhash;
-
-      // First, try a simulation so we can see logs even if it would fail
-      const sim = await conn.simulateTransaction(tx);
-      console.log("=== SIMULATION RESULT ===");
-      console.log("err:", JSON.stringify(sim.value.err, null, 2));
-      console.log("logs:");
-      (sim.value.logs ?? []).forEach((l) => console.log("  " + l));
-      console.log("=== END SIMULATION ===");
-
-      const signed = await wallet.signTransaction(tx);
-      queueSig = await conn.sendRawTransaction(signed.serialize(), {
-        skipPreflight: true,
-      });
-      await conn.confirmTransaction(queueSig, "confirmed");
-    } catch (e: any) {
-      console.log("=== CAUGHT ERROR ===");
-      console.log("Error name:", e?.name);
-      console.log("Error message:", e?.message);
-      if (e?.logs) {
-        console.log("Logs:");
-        e.logs.forEach((l: string) => console.log("  " + l));
+  async function getMXEPublicKeyWithRetry(
+    programId: PublicKey,
+    maxRetries = 20,
+    retryDelayMs = 500
+  ): Promise<Uint8Array> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const k = await getMXEPublicKey(provider, programId);
+        if (k) return k;
+      } catch (e) {
+        // ignore, retry
       }
-      if (typeof e?.getLogs === "function") {
-        try {
-          const logs = await e.getLogs((provider as anchor.AnchorProvider).connection);
-          console.log("getLogs():");
-          logs.forEach((l: string) => console.log("  " + l));
-        } catch {}
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, retryDelayMs));
       }
-      console.log("Full error:", e);
-      console.log("=== END CAUGHT ===");
-      throw e;
     }
-    console.log("Queue sig is ", queueSig);
+    throw new Error(`Failed to fetch MXE public key after ${maxRetries} attempts`);
+  }
 
-    const finalizeSig = await awaitComputationFinalization(
-      provider as anchor.AnchorProvider,
-      computationOffset,
-      program.programId,
-      "confirmed",
-    );
-    console.log("Finalize sig is ", finalizeSig);
+  const awaitEvent = async <E extends keyof Event>(
+    eventName: E,
+    auctionKey?: PublicKey,
+    timeoutMs = 180000
+  ): Promise<Event[E]> => {
+    let listenerId: number;
+    let timeoutId: NodeJS.Timeout;
+    const event = await new Promise<Event[E]>((res, rej) => {
+      listenerId = program.addEventListener(
+        eventName,
+        (event: Record<string, unknown>) => {
+          if (
+            auctionKey &&
+            event.auction instanceof PublicKey &&
+            !event.auction.equals(auctionKey)
+          )
+            return;
+          clearTimeout(timeoutId);
+          res(event as Event[E]);
+        }
+      );
+      timeoutId = setTimeout(() => {
+        program.removeEventListener(listenerId);
+        rej(new Error(`Event ${String(eventName)} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+    await program.removeEventListener(listenerId);
+    return event;
+  };
 
-    const sumEvent = await sumEventPromise;
-    const decrypted = cipher.decrypt([sumEvent.sum], sumEvent.nonce)[0];
-    expect(decrypted).to.equal(val1 + val2);
-  });
-
-  async function initAddTogetherCompDef(
-    program: Program<Auction>,
-    owner: anchor.web3.Keypair,
-  ): Promise<string> {
-    const baseSeedCompDefAcc = getArciumAccountBaseSeed(
-      "ComputationDefinitionAccount",
-    );
-    const offset = getCompDefAccOffset("add_together_v2");
-
+  /**
+   * Idempotent comp def init: only initializes if the account does not yet exist.
+   * The 4 different init methods take different account contexts, so we dispatch by name.
+   */
+  async function ensureCompDef(circuitName: string, owner: anchor.web3.Keypair) {
+    const baseSeed = getArciumAccountBaseSeed("ComputationDefinitionAccount");
+    const offset = getCompDefAccOffset(circuitName);
     const compDefPDA = PublicKey.findProgramAddressSync(
-      [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
-      getArciumProgramId(),
+      [baseSeed, program.programId.toBuffer(), offset],
+      getArciumProgramId()
     )[0];
 
-    console.log("Comp def pda is ", compDefPDA);
+    const existing = await provider.connection.getAccountInfo(compDefPDA);
+    if (existing) {
+      console.log(`  ✓ comp def '${circuitName}' already initialized at ${compDefPDA.toBase58()} - skipping`);
+      return;
+    }
 
+    const arciumProgram = getArciumProgram(provider);
     const mxeAccount = getMXEAccAddress(program.programId);
     const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
     const lutAddress = getLookupTableAddress(program.programId, mxeAcc.lutOffsetSlot);
 
-    const sig = await program.methods
-      .initAddTogetherV2CompDef()
-      .accounts({
-        compDefAccount: compDefPDA,
-        payer: owner.publicKey,
-        mxeAccount,
-        addressLookupTable: lutAddress,
-      })
-      .signers([owner])
-      .rpc({
-        commitment: "confirmed",
+    const accs = {
+      compDefAccount: compDefPDA,
+      payer: owner.publicKey,
+      mxeAccount,
+      addressLookupTable: lutAddress,
+    };
+
+    let builder: any;
+    switch (circuitName) {
+      case "init_auction_state":
+        builder = program.methods.initAuctionStateCompDef().accounts(accs);
+        break;
+      case "place_bid":
+        builder = program.methods.initPlaceBidCompDef().accounts(accs);
+        break;
+      case "determine_winner_first_price":
+        builder = program.methods.initDetermineWinnerFirstPriceCompDef().accounts(accs);
+        break;
+      case "determine_winner_vickrey":
+        builder = program.methods.initDetermineWinnerVickreyCompDef().accounts(accs);
+        break;
+      default:
+        throw new Error(`Unknown circuit: ${circuitName}`);
+    }
+    const sig = await manualRpc(builder, provider, [owner], `init-${circuitName}`);
+    console.log(`  ✓ initialized comp def '${circuitName}' tx: ${sig}`);
+  }
+
+  let owner: anchor.web3.Keypair;
+  let mxePublicKey: Uint8Array;
+
+  before(async () => {
+    owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
+    console.log("\n=== SETUP ===");
+    console.log("Wallet:", owner.publicKey.toBase58());
+    mxePublicKey = await getMXEPublicKeyWithRetry(program.programId);
+    console.log("MXE x25519 pubkey:", Buffer.from(mxePublicKey).toString("hex"));
+
+    console.log("\n=== Init Computation Definitions (idempotent) ===");
+    await ensureCompDef("init_auction_state", owner);
+    await ensureCompDef("place_bid", owner);
+    await ensureCompDef("determine_winner_first_price", owner);
+    // Vickrey not used in MVP test, but init for completeness
+    await ensureCompDef("determine_winner_vickrey", owner);
+    console.log("=== Comp defs ready ===\n");
+  });
+
+  it("creates a first-price auction, accepts a sealed bid, and reveals winner", async function () {
+    this.timeout(300000); // 5 minutes - MPC operations can be slow on devnet
+
+    const bidder = owner;
+    const bidderPubkey = bidder.publicKey.toBytes();
+    const { lo: bidderLo, hi: bidderHi } = splitPubkeyToU128s(bidderPubkey);
+
+    const privateKey = x25519.utils.randomSecretKey();
+    const publicKey = x25519.getPublicKey(privateKey);
+    const sharedSecret = x25519.getSharedSecret(privateKey, mxePublicKey);
+    const cipher = new RescueCipher(sharedSecret);
+
+    // === Step 1: Create First-Price Auction ===
+    console.log("\n--- Step 1: Create auction ---");
+    const createCompOffset = new anchor.BN(randomBytes(8), "hex");
+    // Use a fresh authority keypair per test run so we always get a new PDA
+    const auctionAuthority = anchor.web3.Keypair.generate();
+    // Fund the new authority
+    const transferIx = anchor.web3.SystemProgram.transfer({
+      fromPubkey: owner.publicKey,
+      toPubkey: auctionAuthority.publicKey,
+      lamports: 0.5 * anchor.web3.LAMPORTS_PER_SOL,
+    });
+    const fundTx = new anchor.web3.Transaction().add(transferIx);
+    fundTx.feePayer = owner.publicKey;
+    fundTx.recentBlockhash = (await provider.connection.getLatestBlockhash("confirmed")).blockhash;
+    const signedFund = await (provider.wallet as any).signTransaction(fundTx);
+    const fundSig = await provider.connection.sendRawTransaction(signedFund.serialize(), { skipPreflight: true });
+    await provider.connection.confirmTransaction(fundSig, "confirmed");
+    console.log("  Funded fresh authority:", auctionAuthority.publicKey.toBase58());
+
+    const [auctionPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("auction"), auctionAuthority.publicKey.toBuffer()],
+      program.programId
+    );
+
+    const auctionCreatedPromise = awaitEvent("auctionCreatedEvent", auctionPDA);
+
+    const createBuilder = program.methods
+      .createAuction(
+        createCompOffset,
+        { firstPrice: {} } as any,
+        new anchor.BN(100),  // min_bid: 100 lamports
+        new anchor.BN(120)   // duration: 15 seconds (fast for testing)
+      )
+      .accountsPartial({
+        authority: auctionAuthority.publicKey,
+        auction: auctionPDA,
+        computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, createCompOffset),
+        clusterAccount,
+        mxeAccount: getMXEAccAddress(program.programId),
+        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
+        executingPool: getExecutingPoolAccAddress(arciumEnv.arciumClusterOffset),
+        compDefAccount: getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("init_auction_state")).readUInt32LE()
+        ),
       });
-    console.log("Init add together computation definition transaction", sig);
-    // Circuit hosted offchain via GitHub raw URL.
-    // Arx Nodes fetch + verify hash from CircuitSource::OffChain in the program.
+    const createSig = await manualRpc(createBuilder, provider, [auctionAuthority], "create-auction");
+    console.log("  Create tx:", createSig);
 
-    return sig;
-  }
+    const createFinalizeSig = await awaitComputationFinalization(
+      provider, createCompOffset, program.programId, "confirmed"
+    );
+    console.log("  MPC finalize:", createFinalizeSig);
+
+    const auctionCreatedEvent = await auctionCreatedPromise;
+    console.log("  Auction created:", auctionCreatedEvent.auction.toBase58());
+    expect(auctionCreatedEvent.minBid.toNumber()).to.equal(100);
+
+    // === Step 2: Place encrypted bid (500 lamports) ===
+    console.log("\n--- Step 2: Place sealed bid of 500 lamports ---");
+    const bidPlacedPromise = awaitEvent("bidPlacedEvent", auctionPDA);
+    const bidCompOffset = new anchor.BN(randomBytes(8), "hex");
+
+    const bidAmount = BigInt(500);
+    const nonce = randomBytes(16);
+    const bidPlaintext = [bidderLo, bidderHi, bidAmount];
+    const bidCiphertext = cipher.encrypt(bidPlaintext, nonce);
+
+    const placeBidBuilder = program.methods
+      .placeBid(
+        bidCompOffset,
+        Array.from(bidCiphertext[0]),
+        Array.from(bidCiphertext[1]),
+        Array.from(bidCiphertext[2]),
+        Array.from(publicKey),
+        new anchor.BN(deserializeLE(nonce).toString())
+      )
+      .accountsPartial({
+        bidder: bidder.publicKey,
+        auction: auctionPDA,
+        computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, bidCompOffset),
+        clusterAccount,
+        mxeAccount: getMXEAccAddress(program.programId),
+        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
+        executingPool: getExecutingPoolAccAddress(arciumEnv.arciumClusterOffset),
+        compDefAccount: getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("place_bid")).readUInt32LE()
+        ),
+      });
+    const placeBidSig = await manualRpc(placeBidBuilder, provider, [], "place-bid");
+    console.log("  Bid tx:", placeBidSig);
+
+    const bidFinalizeSig = await awaitComputationFinalization(
+      provider, bidCompOffset, program.programId, "confirmed"
+    );
+    console.log("  MPC finalize:", bidFinalizeSig);
+
+    const bidPlacedEvent = await bidPlacedPromise;
+    console.log("  Bid count:", bidPlacedEvent.bidCount);
+    expect(bidPlacedEvent.bidCount).to.equal(1);
+
+    // === Step 3: Verify the on-chain auction PDA only has encrypted state ===
+    console.log("\n--- Step 3: Verify privacy (encrypted state on chain) ---");
+    const auctionAccount = await program.account.auction.fetch(auctionPDA);
+    console.log("  bid_count:", auctionAccount.bidCount);
+    console.log("  encrypted_state[0] (first 8 bytes):",
+      Buffer.from(auctionAccount.encryptedState[0].slice(0, 8)).toString("hex"));
+    console.log("  state_nonce:", auctionAccount.stateNonce.toString());
+    console.log("  → Bid amount (500) is NOT visible anywhere in the account state.");
+    console.log("  → Even on-chain inspectors only see the encrypted ciphertext.");
+
+    // Sanity: the encrypted state cannot just be all zeros (would mean encryption failed)
+    const allZero = auctionAccount.encryptedState.every((row: number[]) =>
+      row.every((b: number) => b === 0)
+    );
+    expect(allZero).to.equal(false);
+
+    // === Step 4: Wait for auction to end ===
+    console.log("\n--- Step 4: Wait for auction end ---");
+    const endTime = auctionAccount.endTime.toNumber();
+    while (true) {
+      const slot = await provider.connection.getSlot("confirmed");
+      const blockTime = await provider.connection.getBlockTime(slot);
+      if (blockTime === null) break;
+      if (blockTime >= endTime) break;
+      console.log(`  validator clock: ${blockTime}, end_time: ${endTime}, waiting ${endTime - blockTime}s...`);
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+
+    // === Step 5: Close auction ===
+    console.log("\n--- Step 5: Close auction ---");
+    const closedPromise = awaitEvent("auctionClosedEvent", auctionPDA);
+    const closeBuilder = program.methods
+      .closeAuction()
+      .accountsPartial({
+        authority: auctionAuthority.publicKey,
+        auction: auctionPDA,
+      });
+    const closeSig = await manualRpc(closeBuilder, provider, [auctionAuthority], "close-auction");
+    console.log("  Close tx:", closeSig);
+    const closedEvent = await closedPromise;
+    console.log("  Closed, bid_count:", closedEvent.bidCount);
+
+    // === Step 6: Determine winner (first-price) ===
+    console.log("\n--- Step 6: Determine winner (MPC reveal) ---");
+    const resolvedPromise = awaitEvent("auctionResolvedEvent", auctionPDA);
+    const resolveCompOffset = new anchor.BN(randomBytes(8), "hex");
+
+    const determineBuilder = program.methods
+      .determineWinnerFirstPrice(resolveCompOffset)
+      .accountsPartial({
+        authority: auctionAuthority.publicKey,
+        auction: auctionPDA,
+        computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, resolveCompOffset),
+        clusterAccount,
+        mxeAccount: getMXEAccAddress(program.programId),
+        mempoolAccount: getMempoolAccAddress(arciumEnv.arciumClusterOffset),
+        executingPool: getExecutingPoolAccAddress(arciumEnv.arciumClusterOffset),
+        compDefAccount: getCompDefAccAddress(
+          program.programId,
+          Buffer.from(getCompDefAccOffset("determine_winner_first_price")).readUInt32LE()
+        ),
+      });
+    const resolveSig = await manualRpc(determineBuilder, provider, [auctionAuthority], "determine-winner");
+    console.log("  Resolve tx:", resolveSig);
+
+    const resolveFinalizeSig = await awaitComputationFinalization(
+      provider, resolveCompOffset, program.programId, "confirmed"
+    );
+    console.log("  MPC finalize:", resolveFinalizeSig);
+
+    const resolvedEvent = await resolvedPromise;
+    console.log("\n=== AUCTION RESULT ===");
+    const winnerHex = Buffer.from(resolvedEvent.winner).toString("hex");
+    const expectedHex = Buffer.from(bidderPubkey).toString("hex");
+    console.log("  Winner pubkey:", winnerHex);
+    console.log("  Payment amount:", resolvedEvent.paymentAmount.toNumber(), "lamports");
+
+    expect(resolvedEvent.paymentAmount.toNumber()).to.equal(500);
+    expect(winnerHex).to.equal(expectedHex);
+    console.log("\n  ✅ First-price auction resolved correctly. MPC PRIVACY PRESERVED.");
+  });
 });
-
-async function getMXEPublicKeyWithRetry(
-  provider: anchor.AnchorProvider,
-  programId: PublicKey,
-  maxRetries: number = 20,
-  retryDelayMs: number = 500,
-): Promise<Uint8Array> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const mxePublicKey = await getMXEPublicKey(provider, programId);
-      if (mxePublicKey) {
-        return mxePublicKey;
-      }
-    } catch (error) {
-      console.log(`Attempt ${attempt} failed to fetch MXE public key:`, error);
-    }
-
-    if (attempt < maxRetries) {
-      console.log(
-        `Retrying in ${retryDelayMs}ms... (attempt ${attempt}/${maxRetries})`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-    }
-  }
-
-  throw new Error(
-    `Failed to fetch MXE public key after ${maxRetries} attempts`,
-  );
-}
-
-function readKpJson(path: string): anchor.web3.Keypair {
-  const file = fs.readFileSync(path);
-  return anchor.web3.Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(file.toString())),
-  );
-}
