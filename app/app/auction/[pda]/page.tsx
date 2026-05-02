@@ -41,6 +41,9 @@ export default function AuctionDetail() {
   const [auction, setAuction] = useState(null);
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
   const [bidAmount, setBidAmount] = useState("500");
+  const [depositAmount, setDepositAmount] = useState("1000");
+  const [hasReceipt, setHasReceipt] = useState(false);
+  const [receiptClaimed, setReceiptClaimed] = useState(false);
   const [status, setStatus] = useState("idle");
   const [logs, setLogs] = useState([]);
   const [resolved, setResolved] = useState(null);
@@ -69,6 +72,23 @@ export default function AuctionDetail() {
     const t = setInterval(refresh, 5000);
     return () => clearInterval(t);
   }, [refresh]);
+
+  useEffect(() => {
+    if (!wallet || !pda) return;
+    const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
+    const program = new Program(idl, provider);
+    const [receiptPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("receipt"), new PublicKey(pda).toBuffer(), wallet.publicKey.toBuffer()],
+      PROGRAM_ID
+    );
+    program.account.bidReceipt.fetch(receiptPDA).then((r) => {
+      setHasReceipt(true);
+      setReceiptClaimed(r.claimed);
+    }).catch(() => {
+      setHasReceipt(false);
+      setReceiptClaimed(false);
+    });
+  }, [wallet, pda, connection, auction]);
 
   if (!pda) return null;
 
@@ -100,6 +120,11 @@ export default function AuctionDetail() {
       setStatus("signing");
       log("-> requesting signature");
 
+      const [bidReceiptPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("receipt"), new PublicKey(pda).toBuffer(), wallet.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
       const tx = await program.methods
         .placeBid(
           computationOffset,
@@ -107,11 +132,13 @@ export default function AuctionDetail() {
           Array.from(ciphertext[1]),
           Array.from(ciphertext[2]),
           Array.from(publicKey),
-          new BN(deserializeLE(nonce).toString())
+          new BN(deserializeLE(nonce).toString()),
+          new BN(depositAmount)
         )
         .accountsPartial({
           bidder: wallet.publicKey,
           auction: new PublicKey(pda),
+          bidReceipt: bidReceiptPDA,
           computationAccount: getComputationAccAddress(ARCIUM_CLUSTER_OFFSET, computationOffset),
           clusterAccount: getClusterAccAddress(ARCIUM_CLUSTER_OFFSET),
           mxeAccount: getMXEAccAddress(PROGRAM_ID),
@@ -151,6 +178,47 @@ export default function AuctionDetail() {
         attempts++;
       }
       log("! timeout - bid may still be processing, refresh in a moment");
+      setStatus("done");
+    } catch (e) {
+      log("x error: " + (e?.message || String(e)));
+      setStatus("error");
+    }
+  }
+
+  async function claimRefund() {
+    if (!wallet || !auction) return;
+    setStatus("submitting");
+    setLogs([]);
+    try {
+      const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
+      const program = new Program(idl, provider);
+      const [receiptPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("receipt"), new PublicKey(pda).toBuffer(), wallet.publicKey.toBuffer()],
+        PROGRAM_ID
+      );
+
+      const balBefore = await connection.getBalance(wallet.publicKey);
+      log("ok bidder balance: " + (balBefore / 1e9).toFixed(6) + " SOL");
+
+      log("-> claiming refund");
+      const tx = await program.methods
+        .claimRefund()
+        .accountsPartial({
+          bidder: wallet.publicKey,
+          auction: new PublicKey(pda),
+          bidReceipt: receiptPDA,
+        })
+        .transaction();
+      tx.feePayer = wallet.publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+      await connection.confirmTransaction(sig, "confirmed");
+      log("ok claim tx: " + sig.slice(0, 24));
+
+      const balAfter = await connection.getBalance(wallet.publicKey);
+      log("ok new balance: " + (balAfter / 1e9).toFixed(6) + " SOL");
+      setReceiptClaimed(true);
       setStatus("done");
     } catch (e) {
       log("x error: " + (e?.message || String(e)));
@@ -328,16 +396,25 @@ export default function AuctionDetail() {
           {/* RIGHT: ACTIONS + CONSOLE */}
           <div className="space-y-6">
             {/* PLACE BID */}
-            {canBid && (
+            {canBid && !hasReceipt && (
               <div className="border border-[var(--line)] p-6">
                 <div className="mono text-xs uppercase tracking-wider text-[var(--dim)] mb-4">
                   place sealed bid
                 </div>
+                <div className="mono text-[10px] uppercase text-[var(--dim)] mb-1">bid amount (encrypted)</div>
                 <input
                   type="number"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(e.target.value)}
-                  placeholder="amount in lamports"
+                  placeholder="lamports"
+                  className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg mono transition"
+                />
+                <div className="mono text-[10px] uppercase text-[var(--dim)] mt-4 mb-1">deposit (escrowed in PDA, must be ≥ bid)</div>
+                <input
+                  type="number"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  placeholder="lamports"
                   className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg mono transition"
                 />
                 <button
@@ -348,8 +425,36 @@ export default function AuctionDetail() {
                   {status === "idle" || status === "done" || status === "error" ? "encrypt + bid" : status + "..."}
                 </button>
                 <div className="mt-3 mono text-[10px] text-[var(--dim)] leading-relaxed">
-                  your bid is encrypted client-side before sending. no node sees the cleartext value.
+                  your bid is encrypted; deposit is escrowed in plaintext. losers reclaim deposit; winners reclaim deposit minus winning bid.
                 </div>
+              </div>
+            )}
+
+            {hasReceipt && !receiptClaimed && isResolved && (
+              <div className="border border-[var(--accent)] p-6">
+                <div className="mono text-xs uppercase tracking-wider text-[var(--accent)] mb-2">refund available</div>
+                <div className="text-sm text-[var(--dim)] mb-4">
+                  auction is resolved. claim your deposit refund.
+                </div>
+                <button
+                  onClick={claimRefund}
+                  disabled={status === "submitting"}
+                  className="mono text-sm uppercase tracking-wider px-6 h-12 w-full bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--fg)] transition font-bold disabled:opacity-30"
+                >
+                  {status === "submitting" ? "claiming..." : "claim refund"}
+                </button>
+              </div>
+            )}
+
+            {hasReceipt && receiptClaimed && (
+              <div className="border border-[var(--line)] p-6 text-sm text-[var(--dim)]">
+                ✓ you already claimed your refund for this auction.
+              </div>
+            )}
+
+            {hasReceipt && !isResolved && (
+              <div className="border border-[var(--line)] p-6 text-sm text-[var(--dim)]">
+                you bid on this auction. deposit escrowed. claim refund after reveal.
               </div>
             )}
 

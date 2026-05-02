@@ -45,18 +45,14 @@ export default function Create() {
       const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
       const program = new Program(idl, provider);
 
+      // Use timestamp as nonce so each auction gets a unique PDA
+      const auctionNonce = new BN(Date.now());
+      const nonceBytes = auctionNonce.toArrayLike(Buffer, "le", 8);
       const [auctionPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("auction"), wallet.publicKey.toBuffer()],
+        [Buffer.from("auction"), wallet.publicKey.toBuffer(), nonceBytes],
         PROGRAM_ID
       );
-
-      const existing = await connection.getAccountInfo(auctionPDA);
-      if (existing) {
-        log("x auction already exists at " + auctionPDA.toBase58());
-        log("  this wallet already has an open auction. close it first.");
-        setStatus("error");
-        return;
-      }
+      log("ok generated auction nonce: " + auctionNonce.toString());
 
       log("ok derived auction PDA: " + auctionPDA.toBase58());
       const computationOffset = new BN(randomBytes(8), "hex");
@@ -65,6 +61,7 @@ export default function Create() {
       const tx = await program.methods
         .createAuction(
           computationOffset,
+          auctionNonce,
           { [auctionType]: {} },
           new BN(minBid),
           new BN(duration)

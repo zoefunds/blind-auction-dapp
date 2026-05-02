@@ -87,6 +87,7 @@ pub mod auction {
     pub fn create_auction(
         ctx: Context<CreateAuction>,
         computation_offset: u64,
+        auction_nonce: u64,
         auction_type: AuctionType,
         min_bid: u64,
         duration: i64,
@@ -519,7 +520,7 @@ pub struct BidReceipt {
 
 #[queue_computation_accounts("init_auction_state", authority)]
 #[derive(Accounts)]
-#[instruction(computation_offset: u64)]
+#[instruction(computation_offset: u64, auction_nonce: u64)]
 pub struct CreateAuction<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -527,7 +528,7 @@ pub struct CreateAuction<'info> {
         init,
         payer = authority,
         space = 8 + Auction::INIT_SPACE,
-        seeds = [b"auction", authority.key().as_ref()],
+        seeds = [b"auction", authority.key().as_ref(), &auction_nonce.to_le_bytes()],
         bump,
     )]
     pub auction: Box<Account<'info, Auction>>,

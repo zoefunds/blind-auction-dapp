@@ -14,6 +14,63 @@ export type Auction = {
   },
   "instructions": [
     {
+      "name": "claimRefund",
+      "discriminator": [
+        15,
+        16,
+        30,
+        161,
+        255,
+        228,
+        97,
+        60
+      ],
+      "accounts": [
+        {
+          "name": "bidder",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "auction",
+          "writable": true
+        },
+        {
+          "name": "bidReceipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "closeAuction",
       "discriminator": [
         225,
@@ -79,6 +136,10 @@ export type Auction = {
               {
                 "kind": "account",
                 "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "auctionNonce"
               }
             ]
           }
@@ -159,6 +220,10 @@ export type Auction = {
       "args": [
         {
           "name": "computationOffset",
+          "type": "u64"
+        },
+        {
+          "name": "auctionNonce",
           "type": "u64"
         },
         {
@@ -769,6 +834,34 @@ export type Auction = {
           "writable": true
         },
         {
+          "name": "bidReceipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              },
+              {
+                "kind": "account",
+                "path": "bidder"
+              }
+            ]
+          }
+        },
+        {
           "name": "signPdaAccount",
           "writable": true,
           "pda": {
@@ -885,6 +978,10 @@ export type Auction = {
         {
           "name": "nonce",
           "type": "u128"
+        },
+        {
+          "name": "depositAmount",
+          "type": "u64"
         }
       ]
     },
@@ -973,6 +1070,19 @@ export type Auction = {
         233,
         131,
         81
+      ]
+    },
+    {
+      "name": "bidReceipt",
+      "discriminator": [
+        186,
+        150,
+        141,
+        135,
+        59,
+        122,
+        39,
+        99
       ]
     },
     {
@@ -1093,6 +1203,19 @@ export type Auction = {
         112,
         121
       ]
+    },
+    {
+      "name": "refundClaimedEvent",
+      "discriminator": [
+        77,
+        83,
+        172,
+        123,
+        235,
+        58,
+        154,
+        233
+      ]
     }
   ],
   "errors": [
@@ -1145,6 +1268,26 @@ export type Auction = {
       "code": 6009,
       "name": "noBids",
       "msg": "No bids placed"
+    },
+    {
+      "code": 6010,
+      "name": "depositBelowMinBid",
+      "msg": "Deposit must be >= min bid"
+    },
+    {
+      "code": 6011,
+      "name": "auctionNotResolved",
+      "msg": "Auction not resolved yet"
+    },
+    {
+      "code": 6012,
+      "name": "alreadyClaimed",
+      "msg": "Refund already claimed"
+    },
+    {
+      "code": 6013,
+      "name": "refundUnderflow",
+      "msg": "Refund underflow"
     }
   ],
   "types": [
@@ -1242,6 +1385,14 @@ export type Auction = {
                 5
               ]
             }
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "paymentAmount",
+            "type": "u64"
           }
         ]
       }
@@ -1384,6 +1535,34 @@ export type Auction = {
           {
             "name": "bidCount",
             "type": "u16"
+          }
+        ]
+      }
+    },
+    {
+      "name": "bidReceipt",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "deposit",
+            "type": "u64"
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
           }
         ]
       }
@@ -2204,6 +2383,26 @@ export type Auction = {
                 ]
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "refundClaimedEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "bidder",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }
