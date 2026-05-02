@@ -297,6 +297,11 @@ describe("Auction (Sealed-Bid First-Price)", () => {
     const bidPlaintext = [bidderLo, bidderHi, bidAmount];
     const bidCiphertext = cipher.encrypt(bidPlaintext, nonce);
 
+    const [bidReceiptPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("receipt"), auctionPDA.toBuffer(), bidder.publicKey.toBuffer()],
+      program.programId
+    );
+
     const placeBidBuilder = program.methods
       .placeBid(
         bidCompOffset,
@@ -304,11 +309,13 @@ describe("Auction (Sealed-Bid First-Price)", () => {
         Array.from(bidCiphertext[1]),
         Array.from(bidCiphertext[2]),
         Array.from(publicKey),
-        new anchor.BN(deserializeLE(nonce).toString())
+        new anchor.BN(deserializeLE(nonce).toString()),
+        new anchor.BN(1000)  // deposit_amount: 1000 lamports (>= bid 500, >= min 100)
       )
       .accountsPartial({
         bidder: bidder.publicKey,
         auction: auctionPDA,
+        bidReceipt: bidReceiptPDA,
         computationAccount: getComputationAccAddress(arciumEnv.arciumClusterOffset, bidCompOffset),
         clusterAccount,
         mxeAccount: getMXEAccAddress(program.programId),
@@ -411,5 +418,33 @@ describe("Auction (Sealed-Bid First-Price)", () => {
     expect(resolvedEvent.paymentAmount.toNumber()).to.equal(500);
     expect(winnerHex).to.equal(expectedHex);
     console.log("\n  ✅ First-price auction resolved correctly. MPC PRIVACY PRESERVED.");
+
+    // === Step 7: Claim refund ===
+    console.log("\n--- Step 7: Claim refund (winner pays bid, gets back deposit - bid) ---");
+    const balBefore = await provider.connection.getBalance(bidder.publicKey);
+    console.log("  bidder balance before claim:", balBefore / 1e9, "SOL");
+
+    const claimBuilder = program.methods
+      .claimRefund()
+      .accountsPartial({
+        bidder: bidder.publicKey,
+        auction: auctionPDA,
+        bidReceipt: bidReceiptPDA,
+      });
+    const auctionBalBefore = await provider.connection.getBalance(auctionPDA);
+    console.log("  auction PDA balance before claim:", auctionBalBefore, "lamports");
+
+    const claimSig = await manualRpc(claimBuilder, provider, [], "claim-refund");
+    console.log("  Claim tx:", claimSig);
+
+    const auctionBalAfter = await provider.connection.getBalance(auctionPDA);
+    const balAfter = await provider.connection.getBalance(bidder.publicKey);
+    console.log("  bidder balance after claim:", balAfter / 1e9, "SOL (lower due to ~5000 lamport tx fee)");
+    console.log("  auction PDA balance after claim:", auctionBalAfter, "lamports");
+    console.log("  refund extracted from PDA:", auctionBalBefore - auctionBalAfter, "lamports (expected 500)");
+
+    // Winner deposited 1000, owes 500, refund = 500 lamports out of auction PDA
+    expect(auctionBalBefore - auctionBalAfter).to.equal(500);
+    console.log("  ✅ Escrow refund correct: winner paid exactly 500 lamports.");
   });
 });

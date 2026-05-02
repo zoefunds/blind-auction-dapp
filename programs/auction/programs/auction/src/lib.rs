@@ -167,6 +167,7 @@ pub mod auction {
         encrypted_amount: [u8; 32],
         bidder_pubkey: [u8; 32],
         nonce: u128,
+        deposit_amount: u64,
     ) -> Result<()> {
         let auction = &ctx.accounts.auction;
         require!(
@@ -177,6 +178,25 @@ pub mod auction {
             Clock::get()?.unix_timestamp < auction.end_time,
             ErrorCode::AuctionEnded
         );
+        require!(deposit_amount >= auction.min_bid, ErrorCode::DepositBelowMinBid);
+
+        // Escrow: transfer deposit from bidder to auction PDA
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer {
+                from: ctx.accounts.bidder.to_account_info(),
+                to: ctx.accounts.auction.to_account_info(),
+            },
+        );
+        anchor_lang::system_program::transfer(cpi_ctx, deposit_amount)?;
+
+        // Init bid receipt
+        let receipt = &mut ctx.accounts.bid_receipt;
+        receipt.bump = ctx.bumps.bid_receipt;
+        receipt.bidder = ctx.accounts.bidder.key();
+        receipt.auction = ctx.accounts.auction.key();
+        receipt.deposit = deposit_amount;
+        receipt.claimed = false;
 
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
 
@@ -339,6 +359,8 @@ pub mod auction {
         let auction_type = ctx.accounts.auction.auction_type;
         let auction = &mut ctx.accounts.auction;
         auction.status = AuctionStatus::Resolved;
+        auction.winner = Pubkey::new_from_array(winner);
+        auction.payment_amount = payment_amount;
 
         emit!(AuctionResolvedEvent {
             auction: auction_key,
@@ -426,12 +448,43 @@ pub mod auction {
         let auction_type = ctx.accounts.auction.auction_type;
         let auction = &mut ctx.accounts.auction;
         auction.status = AuctionStatus::Resolved;
+        auction.winner = Pubkey::new_from_array(winner);
+        auction.payment_amount = payment_amount;
 
         emit!(AuctionResolvedEvent {
             auction: auction_key,
             winner,
             payment_amount,
             auction_type,
+        });
+
+        Ok(())
+    }
+
+    pub fn claim_refund(ctx: Context<ClaimRefund>) -> Result<()> {
+        let auction = &ctx.accounts.auction;
+        require!(auction.status == AuctionStatus::Resolved, ErrorCode::AuctionNotResolved);
+
+        let receipt = &mut ctx.accounts.bid_receipt;
+        require!(!receipt.claimed, ErrorCode::AlreadyClaimed);
+        require!(receipt.bidder == ctx.accounts.bidder.key(), ErrorCode::Unauthorized);
+
+        let refund = if ctx.accounts.bidder.key() == auction.winner {
+            receipt.deposit.checked_sub(auction.payment_amount).ok_or(ErrorCode::RefundUnderflow)?
+        } else {
+            receipt.deposit
+        };
+
+        receipt.claimed = true;
+
+        // Transfer from auction PDA back to bidder
+        **ctx.accounts.auction.to_account_info().try_borrow_mut_lamports()? -= refund;
+        **ctx.accounts.bidder.to_account_info().try_borrow_mut_lamports()? += refund;
+
+        emit!(RefundClaimedEvent {
+            auction: auction.key(),
+            bidder: ctx.accounts.bidder.key(),
+            amount: refund,
         });
 
         Ok(())
@@ -450,6 +503,18 @@ pub struct Auction {
     pub bid_count: u16,
     pub state_nonce: u128,
     pub encrypted_state: [[u8; 32]; 5],
+    pub winner: Pubkey,
+    pub payment_amount: u64,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct BidReceipt {
+    pub bump: u8,
+    pub bidder: Pubkey,
+    pub auction: Pubkey,
+    pub deposit: u64,
+    pub claimed: bool,
 }
 
 #[queue_computation_accounts("init_auction_state", authority)]
@@ -527,6 +592,14 @@ pub struct PlaceBid<'info> {
     pub bidder: Signer<'info>,
     #[account(mut)]
     pub auction: Box<Account<'info, Auction>>,
+    #[account(
+        init,
+        payer = bidder,
+        space = 8 + BidReceipt::INIT_SPACE,
+        seeds = [b"receipt", auction.key().as_ref(), bidder.key().as_ref()],
+        bump,
+    )]
+    pub bid_receipt: Box<Account<'info, BidReceipt>>,
     #[account(
         init_if_needed,
         space = 9,
@@ -793,6 +866,28 @@ pub struct InitDetermineWinnerVickreyCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct ClaimRefund<'info> {
+    #[account(mut)]
+    pub bidder: Signer<'info>,
+    #[account(mut)]
+    pub auction: Account<'info, Auction>,
+    #[account(
+        mut,
+        seeds = [b"receipt", auction.key().as_ref(), bidder.key().as_ref()],
+        bump = bid_receipt.bump,
+    )]
+    pub bid_receipt: Account<'info, BidReceipt>,
+    pub system_program: Program<'info, System>,
+}
+
+#[event]
+pub struct RefundClaimedEvent {
+    pub auction: Pubkey,
+    pub bidder: Pubkey,
+    pub amount: u64,
+}
+
 #[event]
 pub struct AuctionCreatedEvent {
     pub auction: Pubkey,
@@ -844,4 +939,12 @@ pub enum ErrorCode {
     BidCountOverflow,
     #[msg("No bids placed")]
     NoBids,
+    #[msg("Deposit must be >= min bid")]
+    DepositBelowMinBid,
+    #[msg("Auction not resolved yet")]
+    AuctionNotResolved,
+    #[msg("Refund already claimed")]
+    AlreadyClaimed,
+    #[msg("Refund underflow")]
+    RefundUnderflow,
 }
