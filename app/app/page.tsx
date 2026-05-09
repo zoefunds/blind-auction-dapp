@@ -84,7 +84,6 @@ export default function Home() {
               <Row k="encryption"      v="x25519 + Rescue cipher (Arcis stdlib)" />
               <Row k="frontend"        v="Next.js 14 · TypeScript · Tailwind" />
               <Row k="wallets"         v="Phantom · Solflare (wallet-adapter)" />
-              <Row k="build"           v="commit 39efab4" last />
             </div>
           </div>
         </section>

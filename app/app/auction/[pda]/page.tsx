@@ -257,8 +257,13 @@ export default function AuctionDetail() {
 
   async function revealWinner() {
     if (!wallet || !auction) return;
-    setStatus("computing");
     setLogs([]);
+    if (auction.bidCount === 0) {
+      setStatus("error");
+      setLogs(["x cannot reveal: no bids were placed", "  this auction had 0 bidders. nothing to reveal."]);
+      return;
+    }
+    setStatus("computing");
     try {
       const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
       const program = new Program(idl, provider);
@@ -476,7 +481,12 @@ export default function AuctionDetail() {
               </div>
             )}
 
-            {isAuthority && isClosed && (
+            {isAuthority && isClosed && auction && auction.bidCount === 0 && (
+              <div className="border border-[var(--line)] p-6 text-sm text-[var(--dim)]">
+                no bids were placed. nothing to reveal.
+              </div>
+            )}
+            {isAuthority && isClosed && auction && auction.bidCount > 0 && (
               <div className="border border-[var(--line)] p-6">
                 <div className="mono text-xs uppercase tracking-wider text-[var(--accent)] mb-2">ready to reveal</div>
                 <button
