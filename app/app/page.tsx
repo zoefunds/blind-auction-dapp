@@ -49,7 +49,7 @@ export default function Home() {
             <div className="grid md:grid-cols-3 gap-px bg-[var(--line)] border border-[var(--line)]">
               {[
                 {n:"01", t:"You encrypt locally", d:"Your bid amount is encrypted in the browser using x25519 key-exchange and the Rescue cipher. The plaintext never touches the network."},
-                {n:"02", t:"MPC nodes compute blind", d:"A cluster of Arx Nodes runs the bid-comparison circuit on encrypted shares. No single node — and no subset — can reconstruct any bid."},
+                {n:"02", t:"MPC nodes compute blind", d:"A cluster of Arx Nodes runs the bid-comparison circuit on encrypted shares. No single node and no subset can reconstruct any bid."},
                 {n:"03", t:"You reveal the winner", d:"After the auction closes, the cluster signs an attestation revealing only the winning bidder and price. Losing bids stay encrypted forever."},
               ].map((s, i) => (
                 <div key={i} className="bg-[var(--bg)] p-10 hover:bg-[var(--line)]/50 transition">
