@@ -20,7 +20,7 @@ export default function Home() {
                 <span className="text-[var(--accent)]">can</span> trust.
               </h1>
               <p className="mt-10 text-[var(--dim)] text-lg max-w-xl leading-relaxed">
-                BlindBid runs sealed-bid auctions on Solana where every bid is encrypted client-side and computed by Arcium&apos;s decentralized MPC network. No node — and no observer — ever sees a losing bid.
+                BlindBid runs sealed-bid auctions on Solana where every bid is encrypted client-side and computed by Arcium&apos;s decentralized MPC network. No node and no observer ever sees a losing bid.
               </p>
               <div className="mt-12 flex flex-wrap gap-3">
                 <Link href="/create" className="mono text-sm uppercase tracking-wider px-6 h-12 inline-flex items-center bg-[var(--fg)] text-[var(--bg)] hover:bg-[var(--accent)] transition font-bold">
