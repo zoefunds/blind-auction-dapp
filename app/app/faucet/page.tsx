@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import Header from "@/components/Header";
@@ -15,6 +15,21 @@ export default function Faucet() {
   const [balance, setBalance] = useState(null);
 
   const log = (m) => setLogs((l) => [...l, m]);
+
+  useEffect(() => {
+    if (wallet) {
+      connection.getBalance(wallet.publicKey).then((lamports) => {
+        setBalance(lamports / LAMPORTS_PER_SOL);
+      }).catch(() => {});
+    } else {
+      setBalance(null);
+    }
+  }, [wallet, connection]);
+
+  // Auto-load balance when wallet connects
+  if (typeof window !== "undefined") {
+    // simple hook-less effect via useEffect import
+  }
 
   async function refreshBalance() {
     if (!wallet) return;
