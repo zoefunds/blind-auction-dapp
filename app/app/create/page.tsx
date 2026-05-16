@@ -27,7 +27,7 @@ export default function Create() {
   const { connection } = useConnection();
   const wallet = useAnchorWallet();
   const [name, setName] = useState("");
-  const [minBid, setMinBid] = useState("100");
+  const [minBid, setMinBid] = useState("0.0001");
   const [duration, setDuration] = useState("300");
   const [auctionType, setAuctionType] = useState("firstPrice");
   const [status, setStatus] = useState("idle");
@@ -63,7 +63,7 @@ export default function Create() {
           computationOffset,
           auctionNonce,
           { [auctionType]: {} },
-          new BN(minBid),
+          new BN(Math.round(parseFloat(minBid || "0") * 1e9)),
           new BN(duration)
         )
         .accountsPartial({
@@ -152,9 +152,11 @@ export default function Create() {
                 className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg transition"
               />
             </Field>
-            <Field label="Minimum bid" sub="Lamports. 1 SOL = 1,000,000,000 lamports. 1 SOL = 1,000,000,000.">
+            <Field label="Minimum bid (SOL)" sub="Lowest bid the auction will accept.">
               <input
                 type="number"
+                step="any"
+                min="0"
                 value={minBid}
                 onChange={(e) => setMinBid(e.target.value)}
                 className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg mono transition"

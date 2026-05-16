@@ -26,6 +26,11 @@ import Link from "next/link";
 const PROGRAM_ID = new PublicKey("AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU");
 const ARCIUM_CLUSTER_OFFSET = 456;
 
+function lamportsToSol(lamports) {
+  const n = Number(lamports?.toString?.() ?? lamports ?? 0);
+  return (n / 1e9).toFixed(9).replace(/\.?0+$/, "");
+}
+
 function splitPubkeyToU128s(pubkey) {
   const lo = deserializeLE(pubkey.slice(0, 16));
   const hi = deserializeLE(pubkey.slice(16, 32));
@@ -40,8 +45,9 @@ export default function AuctionDetail() {
 
   const [auction, setAuction] = useState(null);
   const [now, setNow] = useState(Math.floor(Date.now() / 1000));
-  const [bidAmount, setBidAmount] = useState("500");
-  const [depositAmount, setDepositAmount] = useState("1000");
+  const [bidAmount, setBidAmount] = useState("0.001");
+  const [depositAmount, setDepositAmount] = useState("0.002");
+  const [depositTouched, setDepositTouched] = useState(false);
   const [hasReceipt, setHasReceipt] = useState(false);
   const [receiptClaimed, setReceiptClaimed] = useState(false);
   const [status, setStatus] = useState("idle");
@@ -121,9 +127,10 @@ export default function AuctionDetail() {
 
       const { lo: bidderLo, hi: bidderHi } = splitPubkeyToU128s(wallet.publicKey.toBytes());
       const nonce = randomBytes(16);
-      const plaintext = [bidderLo, bidderHi, BigInt(bidAmount)];
+      const bidLamports = BigInt(Math.round(parseFloat(bidAmount || "0") * 1e9));
+      const plaintext = [bidderLo, bidderHi, bidLamports];
       const ciphertext = cipher.encrypt(plaintext, nonce);
-      log("ok encrypted [bidder_lo, bidder_hi, amount=" + bidAmount + "]");
+      log("ok encrypted bid (" + bidAmount + " SOL = " + bidLamports.toString() + " lamports)");
 
       const computationOffset = new BN(randomBytes(8), "hex");
 
@@ -143,7 +150,7 @@ export default function AuctionDetail() {
           Array.from(ciphertext[2]),
           Array.from(publicKey),
           new BN(deserializeLE(nonce).toString()),
-          new BN(depositAmount)
+          new BN(Math.round(parseFloat(depositAmount || "0") * 1e9))
         )
         .accountsPartial({
           bidder: wallet.publicKey,
@@ -262,7 +269,7 @@ export default function AuctionDetail() {
       const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
       await connection.confirmTransaction(sig, "confirmed");
       log("ok withdraw tx: " + sig.slice(0, 24));
-      log("ok " + auction.paymentAmount.toString() + " lamports sent to authority");
+      log("ok " + lamportsToSol(auction.paymentAmount) + " SOL sent to authority");
       setProceedsWithdrawn(true);
       setStatus("done");
     } catch (e) {
@@ -409,7 +416,7 @@ export default function AuctionDetail() {
                 <Row k="status" v={isOpen ? "OPEN" : isClosed ? "CLOSED" : "RESOLVED"} accent={isOpen} />
                 <Row k="type" v={isFirstPrice ? "first-price" : "vickrey (2nd-price)"} />
                 <Row k="authority" v={auction.authority.toBase58()} />
-                <Row k="min bid" v={auction.minBid.toString() +  " lamports"} />
+                <Row k="min bid" v={(auction.minBid.toNumber() / 1e9) + " SOL"} />
                 <Row k="bids placed" v={String(auction.bidCount)} />
                 <Row k="ends at" v={new Date(endTime * 1000).toLocaleString()} />
                 {isOpen && remaining > 0 && (
@@ -442,7 +449,7 @@ export default function AuctionDetail() {
                   {winnerPk && paymentAmt ? (
                     <>
                       <div className="text-3xl font-bold tracking-tighter mb-2">
-                        Winner pays {paymentAmt} lamports
+                        Winner pays {lamportsToSol(paymentAmt)} SOL
                       </div>
                       <div className="mono text-xs text-[var(--dim)] break-all mb-3">
                         winner: {winnerPk}
@@ -472,7 +479,7 @@ export default function AuctionDetail() {
                                 disabled={status === "submitting"}
                                 className="mono text-xs uppercase tracking-wider px-4 h-10 bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--fg)] transition font-bold disabled:opacity-30"
                               >
-                                {status === "submitting" ? "withdrawing..." : "withdraw " + paymentAmt + " lamports"}
+                                {status === "submitting" ? "withdrawing..." : "withdraw " + lamportsToSol(paymentAmt) + " SOL"}
                               </button>
                             </>
                           )}
@@ -495,20 +502,31 @@ export default function AuctionDetail() {
                 <div className="mono text-xs uppercase tracking-wider text-[var(--dim)] mb-4">
                   place sealed bid
                 </div>
-                <div className="mono text-[10px] uppercase text-[var(--dim)] mb-1">bid amount (encrypted)</div>
+                <div className="mono text-[10px] uppercase text-[var(--dim)] mb-1">your bid (SOL, secret)</div>
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={bidAmount}
-                  onChange={(e) => setBidAmount(e.target.value)}
-                  placeholder="lamports"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setBidAmount(v);
+                    if (!depositTouched) {
+                      const b = parseFloat(v || "0");
+                      setDepositAmount(b > 0 ? (b * 2).toString() : "");
+                    }
+                  }}
+                  placeholder="0.001"
                   className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg mono transition"
                 />
-                <div className="mono text-[10px] uppercase text-[var(--dim)] mt-4 mb-1">deposit (escrowed in PDA, must be ≥ bid)</div>
+                <div className="mono text-[10px] uppercase text-[var(--dim)] mt-4 mb-1">deposit (SOL, public, must be ≥ bid)</div>
                 <input
                   type="number"
+                  step="any"
+                  min="0"
                   value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  placeholder="lamports"
+                  onChange={(e) => { setDepositAmount(e.target.value); setDepositTouched(true); }}
+                  placeholder="0.002"
                   className="w-full bg-transparent border-b-2 border-[var(--line)] focus:border-[var(--accent)] outline-none py-3 text-lg mono transition"
                 />
                 <button
@@ -519,7 +537,7 @@ export default function AuctionDetail() {
                   {status === "idle" || status === "done" || status === "error" ? "encrypt + bid" : status + "..."}
                 </button>
                 <div className="mt-3 mono text-[10px] text-[var(--dim)] leading-relaxed">
-                  your bid is encrypted; deposit is escrowed in plaintext. losers reclaim deposit; winners reclaim deposit minus winning bid.
+                  your bid is encrypted; deposit is escrowed publicly and auto-set to 2× your bid to hide it. losers reclaim full deposit; winner reclaims deposit minus winning bid.
                 </div>
               </div>
             )}
