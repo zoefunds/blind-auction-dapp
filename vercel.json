@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd app && npm install --legacy-peer-deps && npm run build",
-  "outputDirectory": "app/.next",
-  "installCommand": "echo skip",
-  "framework": "nextjs"
-}
