@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-auction = "C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz"
+auction = "AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU"
 
 [registry]
 url = "https://api.apr.dev"

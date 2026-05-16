@@ -23,7 +23,7 @@ import idl from "@/lib/anchor/auction.json";
 import Header from "@/components/Header";
 import Link from "next/link";
 
-const PROGRAM_ID = new PublicKey("C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz");
+const PROGRAM_ID = new PublicKey("AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU");
 const ARCIUM_CLUSTER_OFFSET = 456;
 
 function splitPubkeyToU128s(pubkey) {
@@ -47,6 +47,7 @@ export default function AuctionDetail() {
   const [status, setStatus] = useState("idle");
   const [logs, setLogs] = useState([]);
   const [resolved, setResolved] = useState(null);
+  const [proceedsWithdrawn, setProceedsWithdrawn] = useState(false);
 
   const log = (m) => setLogs((l) => [...l, m]);
 
@@ -89,6 +90,15 @@ export default function AuctionDetail() {
       setReceiptClaimed(false);
     });
   }, [wallet, pda, connection, auction]);
+
+  useEffect(() => {
+    if (!pda) return;
+    const [proceedsPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("proceeds"), new PublicKey(pda).toBuffer()],
+      PROGRAM_ID
+    );
+    connection.getAccountInfo(proceedsPDA).then((a) => setProceedsWithdrawn(!!a)).catch(() => setProceedsWithdrawn(false));
+  }, [pda, connection, auction]);
 
   if (!pda) return null;
 
@@ -219,6 +229,41 @@ export default function AuctionDetail() {
       const balAfter = await connection.getBalance(wallet.publicKey);
       log("ok new balance: " + (balAfter / 1e9).toFixed(6) + " SOL");
       setReceiptClaimed(true);
+      setStatus("done");
+    } catch (e) {
+      log("x error: " + (e?.message || String(e)));
+      setStatus("error");
+    }
+  }
+
+  async function withdrawProceeds() {
+    if (!wallet || !auction) return;
+    setStatus("submitting");
+    setLogs([]);
+    try {
+      const provider = new AnchorProvider(connection, wallet, { commitment: "confirmed" });
+      const program = new Program(idl, provider);
+      const [proceedsPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("proceeds"), new PublicKey(pda).toBuffer()],
+        PROGRAM_ID
+      );
+      log("-> withdrawing proceeds");
+      const tx = await program.methods
+        .withdrawProceeds()
+        .accountsPartial({
+          authority: wallet.publicKey,
+          auction: new PublicKey(pda),
+          proceedsClaim: proceedsPDA,
+        })
+        .transaction();
+      tx.feePayer = wallet.publicKey;
+      tx.recentBlockhash = (await connection.getLatestBlockhash("confirmed")).blockhash;
+      const signed = await wallet.signTransaction(tx);
+      const sig = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+      await connection.confirmTransaction(sig, "confirmed");
+      log("ok withdraw tx: " + sig.slice(0, 24));
+      log("ok " + auction.paymentAmount.toString() + " lamports sent to authority");
+      setProceedsWithdrawn(true);
       setStatus("done");
     } catch (e) {
       log("x error: " + (e?.message || String(e)));
@@ -408,12 +453,29 @@ export default function AuctionDetail() {
                         </div>
                       )}
                       {isAuctionAuthority && (
-                        <div className="mono text-[10px] text-[var(--dim)] mt-3 pt-3 border-t border-[var(--line)] leading-relaxed">
-                          you are the auction authority. contact the winner off-chain
-                          (their wallet pubkey is shown above) to coordinate delivery.
-                          the winner&apos;s {paymentAmt}-lamport payment is held in the
-                          auction PDA; remaining bidder deposits will be refunded when
-                          they each call claim_refund.
+                        <div className="mt-3 pt-3 border-t border-[var(--line)]">
+                          {proceedsWithdrawn ? (
+                            <div className="mono text-[10px] text-[var(--dim)] leading-relaxed">
+                              ✓ proceeds withdrawn. contact the winner off-chain to
+                              coordinate delivery.
+                            </div>
+                          ) : (
+                            <>
+                              <div className="mono text-[10px] text-[var(--dim)] mb-3 leading-relaxed">
+                                you are the auction authority. {paymentAmt} lamports
+                                of winner payment are held in the auction PDA.
+                                withdraw to your wallet, then contact the winner
+                                off-chain to deliver the item.
+                              </div>
+                              <button
+                                onClick={withdrawProceeds}
+                                disabled={status === "submitting"}
+                                className="mono text-xs uppercase tracking-wider px-4 h-10 bg-[var(--accent)] text-[var(--bg)] hover:bg-[var(--fg)] transition font-bold disabled:opacity-30"
+                              >
+                                {status === "submitting" ? "withdrawing..." : "withdraw " + paymentAmt + " lamports"}
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </>

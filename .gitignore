@@ -51,3 +51,4 @@ firebase-debug.log
 # === Backups ===
 *.bak
 *.b64
+auction-program-keypair.backup.json

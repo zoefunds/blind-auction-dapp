@@ -8,7 +8,7 @@ import idl from "./auction.json";
 import type { Auction } from "./auction";
 
 export const PROGRAM_ID = new PublicKey(
-  "C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz"
+  "AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU"
 );
 
 export const ARCIUM_CLUSTER_OFFSET = 456; // Devnet cluster

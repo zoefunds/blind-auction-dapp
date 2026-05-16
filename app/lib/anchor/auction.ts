@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/auction.json`.
  */
 export type Auction = {
-  "address": "C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz",
+  "address": "AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU",
   "metadata": {
     "name": "auction",
     "version": "0.1.0",
@@ -1043,6 +1043,63 @@ export type Auction = {
           }
         }
       ]
+    },
+    {
+      "name": "withdrawProceeds",
+      "discriminator": [
+        124,
+        68,
+        215,
+        12,
+        201,
+        136,
+        54,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "auction"
+          ]
+        },
+        {
+          "name": "auction",
+          "writable": true
+        },
+        {
+          "name": "proceedsClaim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  99,
+                  101,
+                  101,
+                  100,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -1149,6 +1206,19 @@ export type Auction = {
         17,
         117
       ]
+    },
+    {
+      "name": "proceedsClaim",
+      "discriminator": [
+        237,
+        155,
+        192,
+        11,
+        83,
+        216,
+        213,
+        197
+      ]
     }
   ],
   "events": [
@@ -1202,6 +1272,19 @@ export type Auction = {
         169,
         112,
         121
+      ]
+    },
+    {
+      "name": "proceedsWithdrawnEvent",
+      "discriminator": [
+        128,
+        104,
+        126,
+        87,
+        59,
+        28,
+        185,
+        141
       ]
     },
     {
@@ -2383,6 +2466,42 @@ export type Auction = {
                 ]
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "proceedsClaim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "auction",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "proceedsWithdrawnEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }

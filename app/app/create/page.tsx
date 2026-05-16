@@ -18,7 +18,7 @@ import idl from "@/lib/anchor/auction.json";
 import Header from "@/components/Header";
 import Link from "next/link";
 
-const PROGRAM_ID = new PublicKey("C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz");
+const PROGRAM_ID = new PublicKey("AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU");
 const ARCIUM_CLUSTER_OFFSET = 456; // Devnet
 
 type Status = "idle" | "signing" | "submitting" | "computing" | "done" | "error";

@@ -1,5 +1,5 @@
 {
-  "address": "C1L6yaUgu9rGbfbDzP61iyaqRrPrTJoUopMmjgLoVYzz",
+  "address": "AJF599kYegNnhobCvz74yXK7oFrXpafQJN5R8MERvjFU",
   "metadata": {
     "name": "auction",
     "version": "0.1.0",
@@ -8,7 +8,7 @@
   },
   "instructions": [
     {
-      "name": "claimRefund",
+      "name": "claim_refund",
       "discriminator": [
         15,
         16,
@@ -30,7 +30,7 @@
           "writable": true
         },
         {
-          "name": "bidReceipt",
+          "name": "bid_receipt",
           "writable": true,
           "pda": {
             "seeds": [
@@ -58,14 +58,14 @@
           }
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "closeAuction",
+      "name": "close_auction",
       "discriminator": [
         225,
         129,
@@ -93,7 +93,7 @@
       "args": []
     },
     {
-      "name": "createAuction",
+      "name": "create_auction",
       "discriminator": [
         234,
         6,
@@ -139,7 +139,7 @@
           }
         },
         {
-          "name": "signPdaAccount",
+          "name": "sign_pda_account",
           "writable": true,
           "pda": {
             "seeds": [
@@ -171,43 +171,43 @@
           }
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "mempoolAccount",
+          "name": "mempool_account",
           "writable": true
         },
         {
-          "name": "executingPool",
+          "name": "executing_pool",
           "writable": true
         },
         {
-          "name": "computationAccount",
+          "name": "computation_account",
           "writable": true
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "clusterAccount",
+          "name": "cluster_account",
           "writable": true
         },
         {
-          "name": "poolAccount",
+          "name": "pool_account",
           "writable": true,
           "address": "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC"
         },
         {
-          "name": "clockAccount",
+          "name": "clock_account",
           "writable": true,
           "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
@@ -217,7 +217,7 @@
           "type": "u64"
         },
         {
-          "name": "auction_nonce",
+          "name": "_auction_nonce",
           "type": "u64"
         },
         {
@@ -239,7 +239,7 @@
       ]
     },
     {
-      "name": "determineWinnerFirstPrice",
+      "name": "determine_winner_first_price",
       "discriminator": [
         41,
         137,
@@ -264,7 +264,7 @@
           "writable": true
         },
         {
-          "name": "signPdaAccount",
+          "name": "sign_pda_account",
           "writable": true,
           "pda": {
             "seeds": [
@@ -296,43 +296,43 @@
           }
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "mempoolAccount",
+          "name": "mempool_account",
           "writable": true
         },
         {
-          "name": "executingPool",
+          "name": "executing_pool",
           "writable": true
         },
         {
-          "name": "computationAccount",
+          "name": "computation_account",
           "writable": true
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "clusterAccount",
+          "name": "cluster_account",
           "writable": true
         },
         {
-          "name": "poolAccount",
+          "name": "pool_account",
           "writable": true,
           "address": "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC"
         },
         {
-          "name": "clockAccount",
+          "name": "clock_account",
           "writable": true,
           "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
@@ -344,7 +344,7 @@
       ]
     },
     {
-      "name": "determineWinnerFirstPriceCallback",
+      "name": "determine_winner_first_price_callback",
       "discriminator": [
         32,
         230,
@@ -357,23 +357,23 @@
       ],
       "accounts": [
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "computationAccount"
+          "name": "computation_account"
         },
         {
-          "name": "clusterAccount"
+          "name": "cluster_account"
         },
         {
-          "name": "instructionsSysvar",
+          "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
@@ -403,7 +403,7 @@
       ]
     },
     {
-      "name": "determineWinnerVickrey",
+      "name": "determine_winner_vickrey",
       "discriminator": [
         107,
         38,
@@ -428,7 +428,7 @@
           "writable": true
         },
         {
-          "name": "signPdaAccount",
+          "name": "sign_pda_account",
           "writable": true,
           "pda": {
             "seeds": [
@@ -460,43 +460,43 @@
           }
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "mempoolAccount",
+          "name": "mempool_account",
           "writable": true
         },
         {
-          "name": "executingPool",
+          "name": "executing_pool",
           "writable": true
         },
         {
-          "name": "computationAccount",
+          "name": "computation_account",
           "writable": true
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "clusterAccount",
+          "name": "cluster_account",
           "writable": true
         },
         {
-          "name": "poolAccount",
+          "name": "pool_account",
           "writable": true,
           "address": "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC"
         },
         {
-          "name": "clockAccount",
+          "name": "clock_account",
           "writable": true,
           "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
@@ -508,7 +508,7 @@
       ]
     },
     {
-      "name": "determineWinnerVickreyCallback",
+      "name": "determine_winner_vickrey_callback",
       "discriminator": [
         22,
         64,
@@ -521,23 +521,23 @@
       ],
       "accounts": [
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "computationAccount"
+          "name": "computation_account"
         },
         {
-          "name": "clusterAccount"
+          "name": "cluster_account"
         },
         {
-          "name": "instructionsSysvar",
+          "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
@@ -567,7 +567,7 @@
       ]
     },
     {
-      "name": "initAuctionStateCallback",
+      "name": "init_auction_state_callback",
       "discriminator": [
         211,
         116,
@@ -580,23 +580,23 @@
       ],
       "accounts": [
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "computationAccount"
+          "name": "computation_account"
         },
         {
-          "name": "clusterAccount"
+          "name": "cluster_account"
         },
         {
-          "name": "instructionsSysvar",
+          "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
@@ -626,7 +626,7 @@
       ]
     },
     {
-      "name": "initAuctionStateCompDef",
+      "name": "init_auction_state_comp_def",
       "discriminator": [
         192,
         33,
@@ -644,34 +644,34 @@
           "signer": true
         },
         {
-          "name": "mxeAccount",
+          "name": "mxe_account",
           "writable": true
         },
         {
-          "name": "compDefAccount",
+          "name": "comp_def_account",
           "writable": true
         },
         {
-          "name": "addressLookupTable",
+          "name": "address_lookup_table",
           "writable": true
         },
         {
-          "name": "lutProgram",
+          "name": "lut_program",
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "initDetermineWinnerFirstPriceCompDef",
+      "name": "init_determine_winner_first_price_comp_def",
       "discriminator": [
         161,
         162,
@@ -689,34 +689,34 @@
           "signer": true
         },
         {
-          "name": "mxeAccount",
+          "name": "mxe_account",
           "writable": true
         },
         {
-          "name": "compDefAccount",
+          "name": "comp_def_account",
           "writable": true
         },
         {
-          "name": "addressLookupTable",
+          "name": "address_lookup_table",
           "writable": true
         },
         {
-          "name": "lutProgram",
+          "name": "lut_program",
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "initDetermineWinnerVickreyCompDef",
+      "name": "init_determine_winner_vickrey_comp_def",
       "discriminator": [
         169,
         226,
@@ -734,34 +734,34 @@
           "signer": true
         },
         {
-          "name": "mxeAccount",
+          "name": "mxe_account",
           "writable": true
         },
         {
-          "name": "compDefAccount",
+          "name": "comp_def_account",
           "writable": true
         },
         {
-          "name": "addressLookupTable",
+          "name": "address_lookup_table",
           "writable": true
         },
         {
-          "name": "lutProgram",
+          "name": "lut_program",
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "initPlaceBidCompDef",
+      "name": "init_place_bid_comp_def",
       "discriminator": [
         205,
         139,
@@ -779,34 +779,34 @@
           "signer": true
         },
         {
-          "name": "mxeAccount",
+          "name": "mxe_account",
           "writable": true
         },
         {
-          "name": "compDefAccount",
+          "name": "comp_def_account",
           "writable": true
         },
         {
-          "name": "addressLookupTable",
+          "name": "address_lookup_table",
           "writable": true
         },
         {
-          "name": "lutProgram",
+          "name": "lut_program",
           "address": "AddressLookupTab1e1111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "placeBid",
+      "name": "place_bid",
       "discriminator": [
         238,
         77,
@@ -828,7 +828,7 @@
           "writable": true
         },
         {
-          "name": "bidReceipt",
+          "name": "bid_receipt",
           "writable": true,
           "pda": {
             "seeds": [
@@ -856,7 +856,7 @@
           }
         },
         {
-          "name": "signPdaAccount",
+          "name": "sign_pda_account",
           "writable": true,
           "pda": {
             "seeds": [
@@ -888,43 +888,43 @@
           }
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "mempoolAccount",
+          "name": "mempool_account",
           "writable": true
         },
         {
-          "name": "executingPool",
+          "name": "executing_pool",
           "writable": true
         },
         {
-          "name": "computationAccount",
+          "name": "computation_account",
           "writable": true
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "clusterAccount",
+          "name": "cluster_account",
           "writable": true
         },
         {
-          "name": "poolAccount",
+          "name": "pool_account",
           "writable": true,
           "address": "G2sRWJvi3xoyh5k2gY49eG9L8YhAEWQPtNb1zb1GXTtC"
         },
         {
-          "name": "clockAccount",
+          "name": "clock_account",
           "writable": true,
           "address": "7EbMUTLo5DjdzbN7s8BXeZwXzEwNQb1hScfRvWg8a6ot"
         },
         {
-          "name": "systemProgram",
+          "name": "system_program",
           "address": "11111111111111111111111111111111"
         },
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         }
       ],
@@ -980,7 +980,7 @@
       ]
     },
     {
-      "name": "placeBidCallback",
+      "name": "place_bid_callback",
       "discriminator": [
         84,
         31,
@@ -993,23 +993,23 @@
       ],
       "accounts": [
         {
-          "name": "arciumProgram",
+          "name": "arcium_program",
           "address": "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ"
         },
         {
-          "name": "compDefAccount"
+          "name": "comp_def_account"
         },
         {
-          "name": "mxeAccount"
+          "name": "mxe_account"
         },
         {
-          "name": "computationAccount"
+          "name": "computation_account"
         },
         {
-          "name": "clusterAccount"
+          "name": "cluster_account"
         },
         {
-          "name": "instructionsSysvar",
+          "name": "instructions_sysvar",
           "address": "Sysvar1nstructions1111111111111111111111111"
         },
         {
@@ -1037,6 +1037,63 @@
           }
         }
       ]
+    },
+    {
+      "name": "withdraw_proceeds",
+      "discriminator": [
+        124,
+        68,
+        215,
+        12,
+        201,
+        136,
+        54,
+        72
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "auction"
+          ]
+        },
+        {
+          "name": "auction",
+          "writable": true
+        },
+        {
+          "name": "proceeds_claim",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  99,
+                  101,
+                  101,
+                  100,
+                  115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "auction"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -1143,6 +1200,19 @@
         17,
         117
       ]
+    },
+    {
+      "name": "ProceedsClaim",
+      "discriminator": [
+        237,
+        155,
+        192,
+        11,
+        83,
+        216,
+        213,
+        197
+      ]
     }
   ],
   "events": [
@@ -1196,6 +1266,19 @@
         169,
         112,
         121
+      ]
+    },
+    {
+      "name": "ProceedsWithdrawnEvent",
+      "discriminator": [
+        128,
+        104,
+        126,
+        87,
+        59,
+        28,
+        185,
+        141
       ]
     },
     {
@@ -1291,7 +1374,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "activationEpoch",
+            "name": "activation_epoch",
             "type": {
               "defined": {
                 "name": "Epoch"
@@ -1299,7 +1382,7 @@
             }
           },
           {
-            "name": "deactivationEpoch",
+            "name": "deactivation_epoch",
             "type": {
               "defined": {
                 "name": "Epoch"
@@ -1335,7 +1418,7 @@
             "type": "pubkey"
           },
           {
-            "name": "auctionType",
+            "name": "auction_type",
             "type": {
               "defined": {
                 "name": "AuctionType"
@@ -1351,23 +1434,23 @@
             }
           },
           {
-            "name": "minBid",
+            "name": "min_bid",
             "type": "u64"
           },
           {
-            "name": "endTime",
+            "name": "end_time",
             "type": "i64"
           },
           {
-            "name": "bidCount",
+            "name": "bid_count",
             "type": "u16"
           },
           {
-            "name": "stateNonce",
+            "name": "state_nonce",
             "type": "u128"
           },
           {
-            "name": "encryptedState",
+            "name": "encrypted_state",
             "type": {
               "array": [
                 {
@@ -1385,7 +1468,7 @@
             "type": "pubkey"
           },
           {
-            "name": "paymentAmount",
+            "name": "payment_amount",
             "type": "u64"
           }
         ]
@@ -1401,7 +1484,7 @@
             "type": "pubkey"
           },
           {
-            "name": "bidCount",
+            "name": "bid_count",
             "type": "u16"
           }
         ]
@@ -1421,7 +1504,7 @@
             "type": "pubkey"
           },
           {
-            "name": "auctionType",
+            "name": "auction_type",
             "type": {
               "defined": {
                 "name": "AuctionType"
@@ -1429,11 +1512,11 @@
             }
           },
           {
-            "name": "minBid",
+            "name": "min_bid",
             "type": "u64"
           },
           {
-            "name": "endTime",
+            "name": "end_time",
             "type": "i64"
           }
         ]
@@ -1458,11 +1541,11 @@
             }
           },
           {
-            "name": "paymentAmount",
+            "name": "payment_amount",
             "type": "u64"
           },
           {
-            "name": "auctionType",
+            "name": "auction_type",
             "type": {
               "defined": {
                 "name": "AuctionType"
@@ -1527,7 +1610,7 @@
             "type": "pubkey"
           },
           {
-            "name": "bidCount",
+            "name": "bid_count",
             "type": "u16"
           }
         ]
@@ -1608,7 +1691,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "startEpoch",
+            "name": "start_epoch",
             "type": {
               "defined": {
                 "name": "Epoch"
@@ -1616,7 +1699,7 @@
             }
           },
           {
-            "name": "currentEpoch",
+            "name": "current_epoch",
             "type": {
               "defined": {
                 "name": "Epoch"
@@ -1624,7 +1707,7 @@
             }
           },
           {
-            "name": "startEpochTimestamp",
+            "name": "start_epoch_timestamp",
             "type": {
               "defined": {
                 "name": "Timestamp"
@@ -1644,7 +1727,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "tdInfo",
+            "name": "td_info",
             "type": {
               "option": {
                 "defined": {
@@ -1660,7 +1743,7 @@
             }
           },
           {
-            "name": "clusterSize",
+            "name": "cluster_size",
             "type": "u16"
           },
           {
@@ -1672,15 +1755,15 @@
             }
           },
           {
-            "name": "maxCapacity",
+            "name": "max_capacity",
             "type": "u64"
           },
           {
-            "name": "cuPrice",
+            "name": "cu_price",
             "type": "u64"
           },
           {
-            "name": "cuPriceProposals",
+            "name": "cu_price_proposals",
             "type": {
               "array": [
                 "u64",
@@ -1689,7 +1772,7 @@
             }
           },
           {
-            "name": "lastUpdatedEpoch",
+            "name": "last_updated_epoch",
             "type": {
               "defined": {
                 "name": "Epoch"
@@ -1707,13 +1790,13 @@
             }
           },
           {
-            "name": "pendingNodes",
+            "name": "pending_nodes",
             "type": {
               "vec": "u32"
             }
           },
           {
-            "name": "blsPublicKey",
+            "name": "bls_public_key",
             "type": {
               "defined": {
                 "name": "SetUnset",
@@ -1746,13 +1829,13 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "finalizationAuthority",
+            "name": "finalization_authority",
             "type": {
               "option": "pubkey"
             }
           },
           {
-            "name": "cuAmount",
+            "name": "cu_amount",
             "type": "u64"
           },
           {
@@ -1764,7 +1847,7 @@
             }
           },
           {
-            "name": "circuitSource",
+            "name": "circuit_source",
             "type": {
               "defined": {
                 "name": "CircuitSource"
@@ -1787,7 +1870,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "circuitLen",
+            "name": "circuit_len",
             "type": "u32"
           },
           {
@@ -1842,7 +1925,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "DetermineWinnerFirstPriceOutputStruct0"
@@ -1858,7 +1941,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "DetermineWinnerFirstPriceOutputStruct00"
@@ -1866,7 +1949,7 @@
             }
           },
           {
-            "name": "field1",
+            "name": "field_1",
             "type": "u64"
           }
         ]
@@ -1878,11 +1961,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": "u128"
           },
           {
-            "name": "field1",
+            "name": "field_1",
             "type": "u128"
           }
         ]
@@ -1898,7 +1981,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "DetermineWinnerVickreyOutputStruct0"
@@ -1914,7 +1997,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "DetermineWinnerVickreyOutputStruct00"
@@ -1922,7 +2005,7 @@
             }
           },
           {
-            "name": "field1",
+            "name": "field_1",
             "type": "u64"
           }
         ]
@@ -1934,11 +2017,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": "u128"
           },
           {
-            "name": "field1",
+            "name": "field_1",
             "type": "u128"
           }
         ]
@@ -1978,7 +2061,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "MXEEncryptedStruct",
@@ -2026,15 +2109,15 @@
             }
           },
           {
-            "name": "keygenOffset",
+            "name": "keygen_offset",
             "type": "u64"
           },
           {
-            "name": "keyRecoveryInitOffset",
+            "name": "key_recovery_init_offset",
             "type": "u64"
           },
           {
-            "name": "mxeProgramId",
+            "name": "mxe_program_id",
             "type": "pubkey"
           },
           {
@@ -2044,7 +2127,7 @@
             }
           },
           {
-            "name": "utilityPubkeys",
+            "name": "utility_pubkeys",
             "type": {
               "defined": {
                 "name": "SetUnset",
@@ -2062,11 +2145,11 @@
             }
           },
           {
-            "name": "lutOffsetSlot",
+            "name": "lut_offset_slot",
             "type": "u64"
           },
           {
-            "name": "computationDefinitions",
+            "name": "computation_definitions",
             "type": {
               "vec": "u32"
             }
@@ -2156,7 +2239,7 @@
             }
           },
           {
-            "name": "peerId",
+            "name": "peer_id",
             "type": {
               "array": [
                 "u8",
@@ -2187,7 +2270,7 @@
             "type": "u32"
           },
           {
-            "name": "currentTotalRewards",
+            "name": "current_total_rewards",
             "type": "u64"
           },
           {
@@ -2224,11 +2307,11 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "isCompleted",
+            "name": "is_completed",
             "type": "bool"
           },
           {
-            "name": "uploadAuth",
+            "name": "upload_auth",
             "type": "pubkey"
           }
         ]
@@ -2365,7 +2448,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "field0",
+            "name": "field_0",
             "type": {
               "defined": {
                 "name": "MXEEncryptedStruct",
@@ -2377,6 +2460,42 @@
                 ]
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProceedsClaim",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "auction",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProceedsWithdrawnEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "auction",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
           }
         ]
       }
@@ -2496,7 +2615,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "x25519Pubkey",
+            "name": "x25519_pubkey",
             "type": {
               "array": [
                 "u8",
@@ -2505,7 +2624,7 @@
             }
           },
           {
-            "name": "ed25519VerifyingKey",
+            "name": "ed25519_verifying_key",
             "type": {
               "array": [
                 "u8",
@@ -2514,7 +2633,7 @@
             }
           },
           {
-            "name": "elgamalPubkey",
+            "name": "elgamal_pubkey",
             "type": {
               "array": [
                 "u8",
@@ -2523,7 +2642,7 @@
             }
           },
           {
-            "name": "pubkeyValidityProof",
+            "name": "pubkey_validity_proof",
             "type": {
               "array": [
                 "u8",

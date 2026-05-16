@@ -8,3 +8,4 @@ test-ledger
 encrypted-ixs/arcis_temp_target
 encrypted-ixs/src/main.rs
 artifacts/
+auction-program-keypair.backup.json
