@@ -26,12 +26,5 @@ export function useAnchorProgram(): Program<Auction> | null {
   }, [connection, wallet]);
 }
 
-export function findAuctionPda(authority: PublicKey): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("auction"), authority.toBuffer()],
-    PROGRAM_ID
-  );
-}
-
 export const EXPLORER = (sig: string) =>
   `https://explorer.solana.com/tx/${sig}?cluster=devnet`;

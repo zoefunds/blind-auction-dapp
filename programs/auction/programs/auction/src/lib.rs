@@ -87,7 +87,7 @@ pub mod auction {
     pub fn create_auction(
         ctx: Context<CreateAuction>,
         computation_offset: u64,
-        auction_nonce: u64,
+        _auction_nonce: u64,
         auction_type: AuctionType,
         min_bid: u64,
         duration: i64,
